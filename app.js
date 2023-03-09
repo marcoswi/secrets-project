@@ -4,8 +4,7 @@ import express from "express";
 import bodyParser from "body-parser";
 import ejs from "ejs";
 import mongoose from "mongoose";
-import encrypt from "mongoose-encryption";
- 
+import md5 from 'md5';
 
 const app = express();
 
@@ -16,12 +15,11 @@ app.use(bodyParser.urlencoded({extended: true}));
 
 /* --------------- "connection to MongoDB" ---------------- */
 
-const uri = "mongodb+srv://mw:n6mI1vgl6PhVd9DD@cluster0.j1zpf8o.mongodb.net/secretsPage?retryWrites=true&w=majority";
 
 
 async function connect() {
     try {
-    await mongoose.connect(uri);
+    await mongoose.connect(process.env.URI);
     console.log("Connected to MongoDB");
     } catch (error) {
     console.log(error);
@@ -35,8 +33,6 @@ const userSchema = new mongoose.Schema ({
     email: String,
     password: String
 });
-
-userSchema.plugin(encrypt, { secret: process.env.SECRET, encryptedFields: ['password'] });
 
 const User = new mongoose.model("User", userSchema);
 
@@ -66,7 +62,7 @@ User.findOne({email: userName})
             } else {
                 const newUser = new User({
                     email: req.body.username,
-                    password: req.body.password
+                    password: md5(req.body.password)
                 });
                 newUser.save()
                 .then(function(newUser){
@@ -90,7 +86,7 @@ app.get("/login", function(req, res){
 
 app.post("/login", function (req, res){
     const userName = req.body.username;
-    const userPassword = req.body.password;
+    const userPassword = md5(req.body.password);
 
     User.findOne({email: userName})
     .then(function(foundUser){
