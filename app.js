@@ -4,7 +4,9 @@ import express from "express";
 import bodyParser from "body-parser";
 import ejs from "ejs";
 import mongoose from "mongoose";
-import md5 from 'md5';
+import bcrypt from "bcrypt";
+const saltRounds = 10;
+
 
 const app = express();
 
@@ -52,17 +54,16 @@ app.get("/register", function(req, res){
 });
 
 app.post("/register", function (req, res){
-    const userName = req.body.username;
-    const userPassword = req.body.password;
 
-User.findOne({email: userName})
-    .then(function(foundUser){
+    bcrypt.hash(req.body.password, saltRounds, function(err, hash) {
+        User.findOne({email: req.body.username})
+        .then(function(foundUser){
         if (foundUser) {
             console.log("The email is already being used")
             } else {
                 const newUser = new User({
                     email: req.body.username,
-                    password: md5(req.body.password)
+                    password: hash
                 });
                 newUser.save()
                 .then(function(newUser){
@@ -72,8 +73,9 @@ User.findOne({email: userName})
                 })
                 .catch(function(err){
                     console.log(err);
-            });
-        }
+                });
+            }
+        });
     });
 });
 
@@ -86,15 +88,19 @@ app.get("/login", function(req, res){
 
 app.post("/login", function (req, res){
     const userName = req.body.username;
-    const userPassword = md5(req.body.password);
+    const userPassword = req.body.password;
 
     User.findOne({email: userName})
     .then(function(foundUser){
         if (!foundUser) {
             console.log("User not found")
         } else {
-            if (foundUser.password === userPassword) {
-                res.render("secrets");
+            if (foundUser) {
+                bcrypt.compare(userPassword, foundUser.password, function(err, result) {
+                    if (result === true) {
+                        res.render("secrets");
+                    }
+                });
             } else {
                 console.log("Incorrect Password")
             };
